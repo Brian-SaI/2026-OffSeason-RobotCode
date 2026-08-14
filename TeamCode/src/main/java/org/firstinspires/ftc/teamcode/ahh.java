@@ -2,60 +2,83 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
 
-@TeleOp(name = "CR Servo Triangle Test", group = "Test")
+/**
+ * MotorTestTeleOp
+ *
+ * A simple diagnostic TeleOp used to verify that four motors are wired and
+ * spinning correctly. Each motor is triggered by one of the PlayStation
+ * controller's face buttons. Hold a button down to run the matching motor
+ * forward at a safe test speed; release the button to stop it.
+ *
+ * PlayStation button -> gamepad field mapping (FTC SDK):
+ *   Cross    (X) -> gamepad1.a
+ *   Circle   (O) -> gamepad1.b
+ *   Square   ([]) -> gamepad1.x
+ *   Triangle (^) -> gamepad1.y
+ *
+ * Configure four motors in your robot configuration with these names
+ * (or change the strings below to match your own configuration):
+ *   "motor1", "motor2", "motor3", "motor4"
+ */
+@TeleOp(name = "Motor Hardware Test", group = "Test")
 public class ahh extends LinearOpMode {
 
-    private CRServo myServo;
-    private DcMotorEx myMotor;
+    // Speed used for testing. Kept modest so motors don't take off unexpectedly.
+    private static final double TEST_POWER = 1;
 
-    // Set this to your motor's actual max ticks-per-second at full speed.
-    // Example: a GoBILDA 5203 (312 RPM, 537.7 ticks/rev) maxes out around 2800 ticks/sec.
-    // Check your motor's spec sheet to get an accurate number.
-    private static final double MAX_VELOCITY_TICKS_PER_SEC = 2800.0;
+    private DcMotor motor1; // Cross    (X)
+    private DcMotor motor2; // Circle   (O)
+    private DcMotor motor3; // Square   ([])
+    private DcMotor motor4; // Triangle (^)
 
     @Override
     public void runOpMode() {
-        // Map the servo to the name configured in your robot configuration
-        myServo = hardwareMap.get(CRServo.class, "myServo");
-        myMotor = hardwareMap.get(DcMotorEx.class, "myMotor");
 
-        // RUN_USING_ENCODER is required for setVelocity() to work (closed-loop control)
-        myMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        myMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        // Map hardware. Update the config names here if yours differ.
+        motor1 = hardwareMap.get(DcMotor.class, "FR_Drive");
+        motor2 = hardwareMap.get(DcMotor.class, "BR_Drive");
+        motor3 = hardwareMap.get(DcMotor.class, "FL_Drive");
+        motor4 = hardwareMap.get(DcMotor.class, "BL_Drive");
 
-        telemetry.addLine("Ready to start");
+        // Make sure motors are stopped and braking when not powered.
+        for (DcMotor motor : new DcMotor[]{motor1, motor2, motor3, motor4}) {
+            motor.setPower(0);
+            motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        }
+
+        telemetry.addLine("Motor Test Ready");
+        telemetry.addLine("Cross=motor1  Circle=motor2  Square=motor3  Triangle=motor4");
         telemetry.update();
 
         waitForStart();
 
         while (opModeIsActive()) {
-            // --- Servo control ---
-            if (gamepad1.triangle) {
-                myServo.setPower(1.0);  // full speed forward
-            } else if (gamepad1.cross) {
-                myServo.setPower(-1.0); // full speed reverse
-            } else {
-                myServo.setPower(0.0);  // stop
-            }
 
-            // --- Motor control (closed-loop velocity) ---
-            if (gamepad1.circle) {
-                myMotor.setVelocity(MAX_VELOCITY_TICKS_PER_SEC);  // full speed forward
-            } else if (gamepad1.square) {
-                myMotor.setVelocity(-MAX_VELOCITY_TICKS_PER_SEC); // full speed reverse
-            } else {
-                myMotor.setVelocity(0.0);  // stop
-            }
+            // Cross (X) button -> motor1
+            motor1.setPower(gamepad1.a ? TEST_POWER : 0);
 
-            telemetry.addData("Triangle pressed", gamepad1.triangle);
-            telemetry.addData("Servo power", myServo.getPower());
-            telemetry.addData("Motor target velocity", MAX_VELOCITY_TICKS_PER_SEC);
-            telemetry.addData("Motor actual velocity", myMotor.getVelocity());
+            // Circle (O) button -> motor2
+            motor2.setPower(gamepad1.b ? TEST_POWER : 0);
+
+            // Square ([]) button -> motor3
+            motor3.setPower(gamepad1.x ? TEST_POWER : 0);
+
+            // Triangle (^) button -> motor4
+            motor4.setPower(gamepad1.y ? TEST_POWER : 0);
+
+            telemetry.addData("Motor 1 (Cross)",    "power=%.2f", motor1.getPower());
+            telemetry.addData("Motor 2 (Circle)",   "power=%.2f", motor2.getPower());
+            telemetry.addData("Motor 3 (Square)",   "power=%.2f", motor3.getPower());
+            telemetry.addData("Motor 4 (Triangle)", "power=%.2f", motor4.getPower());
             telemetry.update();
         }
+
+        // Safety stop on exit.
+        motor1.setPower(0);
+        motor2.setPower(0);
+        motor3.setPower(0);
+        motor4.setPower(0);
     }
 }
