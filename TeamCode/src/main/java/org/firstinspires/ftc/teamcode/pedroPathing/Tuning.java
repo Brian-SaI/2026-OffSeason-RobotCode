@@ -1428,7 +1428,7 @@ class Circle extends OpMode {
  */
 class AnalogMinMaxTuner extends OpMode {
     //populate the below with your names for the servos and encoders
-    public String[] encoderNames = {"leftFrontEncoder", "rightFrontEncoder", "leftBackEncoder", "rightBackEncoder"};
+    public String[] encoderNames = {"FL_Position", "FR_Position", "BL_Position", "BR_Position"};
     public AnalogInput[] encoders = new AnalogInput[encoderNames.length];
     public double[] minVoltages = new double[encoderNames.length];
     public double[] maxVoltages = new double[encoderNames.length];
