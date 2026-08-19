@@ -11,52 +11,33 @@ import com.qualcomm.robotcore.hardware.CRServo;
 /**
  * MotorTestJoystickTeleOp
  *
- * Diagnostic TeleOp: all four motors run together, driven by a single
- * joystick's magnitude - no directional mixing or vector math. Full
- * deflection in ANY direction (up, down, left, right, diagonal) sends
- * the same full-power value to all four motors at once. This is purely
- * for confirming every motor spins correctly across a range of power
- * levels, not for actual directional driving.
- *
  * Controls:
- *   left_stick_y / left_stick_x -> whichever has the larger magnitude
- *                                  sets the power level for all 4 motors
+ *   Gamepad 1:
+ *     - Left stick (X/Y) -> Drives ALL 4 motors at once based on stick magnitude.
+ *     - Cross (A)    -> Spins BR_Steer servo
+ *     - Square (X)   -> Spins FR_Steer servo
+ *     - Triangle (Y) -> Spins FL_Steer servo
+ *     - Circle (B)   -> Spins BL_Steer servo
  *
- * Configure four motors in your robot configuration with these names:
- *   "FR_Drive", "BR_Drive", "FL_Drive", "BL_Drive"
- *
- * Also reads two analog position encoders (plugged into analog ports)
- * configured with these names:
- *   "FR_Position", "BR_Position"
- *
- * Motor power is capped at MAX_SPEED, and each motor is monitored
- * against a current (amperage) limit - if a motor draws more than
- * CURRENT_LIMIT_AMPS, its power is cut until it drops back under
- * the limit. Note: the REV hub's absolute hardware current limit
- * (9.2A per port) can't be changed from code - this is a *software*
- * limit layered on top, set lower than that hardware ceiling so it
- * actually takes effect first.
- *
- * Two continuous-rotation steer servos are also driven directly by
- * face buttons, configured with these names:
- *   "BR_Steer", "FR_Steer"
- * Cross (gamepad1.a)  -> BR_Steer spins at STEER_TEST_POWER while held
- * Square (gamepad1.x) -> FR_Steer spins at STEER_TEST_POWER while held
- * Releasing the button stops the corresponding servo.
+ *   Gamepad 2:
+ *     - Cross (A)    -> Spins BR_Drive motor
+ *     - Square (X)   -> Spins FR_Drive motor
+ *     - Triangle (Y) -> Spins FL_Drive motor
+ *     - Circle (B)   -> Spins BL_Drive motor
  */
 @TeleOp(name = "Motor Test Joystick TeleOp", group = "Test")
 public class ahh extends LinearOpMode {
 
-    // Hard cap on motor power - 0.5 means "full stick" only ever
-    // produces half of the motor's actual max speed.
-    private static final double MAX_SPEED = 0.5;
+    // Hard cap on motor power
+    private static final double MAX_SPEED = 0.85;
 
-    // Software current limit. If a motor's draw exceeds this, its
-    // power is cut to 0 until the draw falls back under the limit.
-    // Tune this to whatever is safe for your specific motor.
+    // Power used to spin an individual motor via Gamepad 2 buttons
+    private static final double INDIVIDUAL_MOTOR_POWER = 1.0;
+
+    // Software current limit in Amperes
     private static final double CURRENT_LIMIT_AMPS = 5.0;
 
-    // Power used to spin the steer servos while their button is held.
+    // Power used to spin the steer servos while their button is held
     private static final double STEER_TEST_POWER = 0.5;
 
     private DcMotorEx frontLeft;
@@ -66,26 +47,39 @@ public class ahh extends LinearOpMode {
 
     private AnalogInput frontRightEncoder;
     private AnalogInput backRightEncoder;
+    private AnalogInput frontLeftEncoder;
+    private AnalogInput backLeftEncoder;
 
     private CRServo frontRightSteer;
     private CRServo backRightSteer;
+    private CRServo frontLeftSteer;
+    private CRServo backLeftSteer;
 
     @Override
     public void runOpMode() {
 
-        // Map hardware. Update the config names here if yours differ.
+        // Map drive motors
         frontRight = hardwareMap.get(DcMotorEx.class, "FR_Drive");
         backRight  = hardwareMap.get(DcMotorEx.class, "BR_Drive");
         frontLeft  = hardwareMap.get(DcMotorEx.class, "FL_Drive");
         backLeft   = hardwareMap.get(DcMotorEx.class, "BL_Drive");
 
+        // Map analog position encoders
         frontRightEncoder = hardwareMap.get(AnalogInput.class, "FR_Position");
         backRightEncoder  = hardwareMap.get(AnalogInput.class, "BR_Position");
+        frontLeftEncoder  = hardwareMap.get(AnalogInput.class, "FL_Position");
+        backLeftEncoder   = hardwareMap.get(AnalogInput.class, "BL_Position");
 
+        // Map steer servos
         frontRightSteer = hardwareMap.get(CRServo.class, "FR_Steer");
         backRightSteer  = hardwareMap.get(CRServo.class, "BR_Steer");
+        frontLeftSteer  = hardwareMap.get(CRServo.class, "FL_Steer");
+        backLeftSteer   = hardwareMap.get(CRServo.class, "BL_Steer");
+
         frontRightSteer.setPower(0);
         backRightSteer.setPower(0);
+        frontLeftSteer.setPower(0);
+        backLeftSteer.setPower(0);
 
         for (DcMotorEx motor : new DcMotorEx[]{frontLeft, frontRight, backLeft, backRight}) {
             motor.setPower(0);
@@ -94,75 +88,93 @@ public class ahh extends LinearOpMode {
         }
 
         telemetry.addLine("Motor Test Ready");
-        telemetry.addLine("Push left stick any direction - all motors match its magnitude");
+        telemetry.addLine("G1 Left Stick: All motors together");
+        telemetry.addLine("G1 A/X/Y/B: Individual servos");
+        telemetry.addLine("G2 A/X/Y/B: Individual motors");
         telemetry.update();
 
         waitForStart();
 
         while (opModeIsActive()) {
 
-            // Joystick inputs. Y is inverted because gamepad forward = negative.
+            // Gamepad 1 Joystick inputs
             double y = -gamepad1.left_stick_y;
             double x =  gamepad1.left_stick_x;
 
-            // Whichever axis is pushed further determines the power.
-            // No direction/rotation logic - every motor just gets this
-            // one value, so full right and full forward look identical
-            // to the motors. Scaled down by MAX_SPEED so full stick
-            // deflection never exceeds the configured speed cap.
-            double power = (Math.abs(x) > Math.abs(y) ? x : y) * MAX_SPEED;
+            // Power calculation for all motors driven by G1 stick
+            double allMotorPower = (Math.abs(x) > Math.abs(y) ? x : y) * MAX_SPEED;
 
-            // Apply the same requested power to every motor, but clamp
-            // any individual motor to 0 if it's currently pulling more
-            // than CURRENT_LIMIT_AMPS. This protects each motor
-            // independently - one overloaded motor won't affect the others.
-            double frontLeftPower  = frontLeft.isOverCurrent()  ? 0 : power;
-            double frontRightPower = frontRight.isOverCurrent() ? 0 : power;
-            double backLeftPower   = backLeft.isOverCurrent()   ? 0 : power;
-            double backRightPower  = backRight.isOverCurrent()  ? 0 : power;
+            // Determine individual motor target powers:
+            // Check Gamepad 2 face buttons first; if none are pressed, fallback to Gamepad 1 stick control.
+            double targetFL = gamepad2.y ? INDIVIDUAL_MOTOR_POWER : allMotorPower;
+            double targetFR = gamepad2.x ? INDIVIDUAL_MOTOR_POWER : allMotorPower;
+            double targetBL = gamepad2.b ? INDIVIDUAL_MOTOR_POWER : allMotorPower;
+            double targetBR = gamepad2.a ? INDIVIDUAL_MOTOR_POWER : allMotorPower;
+
+            // Overcurrent protection per motor
+            double frontLeftPower  = frontLeft.isOverCurrent()  ? 0 : targetFL;
+            double frontRightPower = frontRight.isOverCurrent() ? 0 : targetFR;
+            double backLeftPower   = backLeft.isOverCurrent()   ? 0 : targetBL;
+            double backRightPower  = backRight.isOverCurrent()  ? 0 : targetBR;
 
             frontLeft.setPower(frontLeftPower);
             backLeft.setPower(backLeftPower);
             frontRight.setPower(frontRightPower);
             backRight.setPower(backRightPower);
 
-            // Analog encoders report position as a voltage (0V to the
-            // controller's max, typically 3.3V for FTC's analog ports).
-            // Dividing by max voltage gives a 0.0-1.0 fraction of a full
-            // rotation, which is easier to read at a glance.
-            double frMaxVoltage = frontRightEncoder.getMaxVoltage();
-            double brMaxVoltage = backRightEncoder.getMaxVoltage();
+            // Read encoder voltages and calculate positions (0.0 to 1.0 fraction)
             double frVoltage = frontRightEncoder.getVoltage();
             double brVoltage = backRightEncoder.getVoltage();
-            double frPosition = frVoltage / frMaxVoltage;
-            double brPosition = brVoltage / brMaxVoltage;
+            double flVoltage = frontLeftEncoder.getVoltage();
+            double blVoltage = backLeftEncoder.getVoltage();
 
-            // Cross (X) -> BR_Steer, Square ([]) -> FR_Steer. Each servo
-            // spins at STEER_TEST_POWER only while its button is held,
-            // and stops the instant the button is released.
+            double frPosition = frVoltage / frontRightEncoder.getMaxVoltage();
+            double brPosition = brVoltage / backRightEncoder.getMaxVoltage();
+            double flPosition = flVoltage / frontLeftEncoder.getMaxVoltage();
+            double blPosition = blVoltage / backLeftEncoder.getMaxVoltage();
+
+            // Gamepad 1 Button mapping for continuous rotation servos:
+            // Cross (A)    -> BR_Steer
+            // Square (X)   -> FR_Steer
+            // Triangle (Y) -> FL_Steer
+            // Circle (B)   -> BL_Steer
             backRightSteer.setPower(gamepad1.a ? STEER_TEST_POWER : 0);
             frontRightSteer.setPower(gamepad1.x ? STEER_TEST_POWER : 0);
+            frontLeftSteer.setPower(gamepad1.y ? STEER_TEST_POWER : 0);
+            backLeftSteer.setPower(gamepad1.b ? STEER_TEST_POWER : 0);
 
-            telemetry.addData("Stick X", "%.2f", x);
-            telemetry.addData("Stick Y", "%.2f", y);
-            telemetry.addData("Motor Power (requested)", "%.2f", power);
-            telemetry.addData("FL Current", "%.2fA  overCurrent=%b", frontLeft.getCurrent(CurrentUnit.AMPS), frontLeft.isOverCurrent());
-            telemetry.addData("FR Current", "%.2fA  overCurrent=%b", frontRight.getCurrent(CurrentUnit.AMPS), frontRight.isOverCurrent());
-            telemetry.addData("BL Current", "%.2fA  overCurrent=%b", backLeft.getCurrent(CurrentUnit.AMPS), backLeft.isOverCurrent());
-            telemetry.addData("BR Current", "%.2fA  overCurrent=%b", backRight.getCurrent(CurrentUnit.AMPS), backRight.isOverCurrent());
-            telemetry.addData("FR Position", "%.3fV  (%.1f%% of range)", frVoltage, frPosition * 100);
-            telemetry.addData("BR Position", "%.3fV  (%.1f%% of range)", brVoltage, brPosition * 100);
-            telemetry.addData("BR Steer (Cross)", "power=%.2f", backRightSteer.getPower());
-            telemetry.addData("FR Steer (Square)", "power=%.2f", frontRightSteer.getPower());
+            // Telemetry
+            telemetry.addData("Stick X (G1)", "%.2f", x);
+            telemetry.addData("Stick Y (G1)", "%.2f", y);
+            telemetry.addData("All Motor Power", "%.2f", allMotorPower);
+
+            telemetry.addData("FL Motor (G2 Y)", "Pwr=%.2f  Curr=%.2fA  overCurrent=%b", frontLeft.getPower(), frontLeft.getCurrent(CurrentUnit.AMPS), frontLeft.isOverCurrent());
+            telemetry.addData("FR Motor (G2 X)", "Pwr=%.2f  Curr=%.2fA  overCurrent=%b", frontRight.getPower(), frontRight.getCurrent(CurrentUnit.AMPS), frontRight.isOverCurrent());
+            telemetry.addData("BL Motor (G2 B)", "Pwr=%.2f  Curr=%.2fA  overCurrent=%b", backLeft.getPower(), backLeft.getCurrent(CurrentUnit.AMPS), backLeft.isOverCurrent());
+            telemetry.addData("BR Motor (G2 A)", "Pwr=%.2f  Curr=%.2fA  overCurrent=%b", backRight.getPower(), backRight.getCurrent(CurrentUnit.AMPS), backRight.isOverCurrent());
+
+            telemetry.addData("FL Position", "%.3fV  (%.1f%%)", flVoltage, flPosition * 100);
+            telemetry.addData("FR Position", "%.3fV  (%.1f%%)", frVoltage, frPosition * 100);
+            telemetry.addData("BL Position", "%.3fV  (%.1f%%)", blVoltage, blPosition * 100);
+            telemetry.addData("BR Position", "%.3fV  (%.1f%%)", brVoltage, brPosition * 100);
+
+            telemetry.addData("FL Steer (G1 Y)", "power=%.2f", frontLeftSteer.getPower());
+            telemetry.addData("FR Steer (G1 X)", "power=%.2f", frontRightSteer.getPower());
+            telemetry.addData("BL Steer (G1 B)", "power=%.2f", backLeftSteer.getPower());
+            telemetry.addData("BR Steer (G1 A)", "power=%.2f", backRightSteer.getPower());
+
             telemetry.update();
         }
 
-        // Safety stop on exit.
+        // Safety stop on exit
         frontLeft.setPower(0);
         backLeft.setPower(0);
         frontRight.setPower(0);
         backRight.setPower(0);
+
         frontRightSteer.setPower(0);
         backRightSteer.setPower(0);
+        frontLeftSteer.setPower(0);
+        backLeftSteer.setPower(0);
     }
 }
