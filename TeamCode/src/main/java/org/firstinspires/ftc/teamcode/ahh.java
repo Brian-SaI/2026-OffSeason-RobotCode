@@ -29,7 +29,7 @@ import com.qualcomm.robotcore.hardware.CRServo;
 public class ahh extends LinearOpMode {
 
     // Hard cap on motor power
-    private static final double MAX_SPEED = 0.85;
+    private static final double MAX_SPEED = 1.0;
 
     // Power used to spin an individual motor via Gamepad 2 buttons
     private static final double INDIVIDUAL_MOTOR_POWER = 1.0;
@@ -112,10 +112,10 @@ public class ahh extends LinearOpMode {
             double targetBR = gamepad2.a ? INDIVIDUAL_MOTOR_POWER : allMotorPower;
 
             // Overcurrent protection per motor
-            double frontLeftPower  = frontLeft.isOverCurrent()  ? 0 : targetFL;
-            double frontRightPower = frontRight.isOverCurrent() ? 0 : targetFR;
-            double backLeftPower   = backLeft.isOverCurrent()   ? 0 : targetBL;
-            double backRightPower  = backRight.isOverCurrent()  ? 0 : targetBR;
+            double frontLeftPower  = targetFL;
+            double frontRightPower = targetFR;
+            double backLeftPower   = targetBL;
+            double backRightPower  = targetBR;
 
             frontLeft.setPower(frontLeftPower);
             backLeft.setPower(backLeftPower);
