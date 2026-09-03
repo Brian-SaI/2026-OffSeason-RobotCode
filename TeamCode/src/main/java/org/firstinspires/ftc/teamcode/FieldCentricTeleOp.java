@@ -40,8 +40,6 @@ public class FieldCentricTeleOp extends OpMode {
 
     @Override
     public void loop() {
-        follower.update();
-
         smoothedForward = smooth(smoothedForward, -gamepad1.left_stick_y);
         smoothedStrafe = smooth(smoothedStrafe, -gamepad1.left_stick_x);
         smoothedTurn = smooth(smoothedTurn, -gamepad1.right_stick_x);
@@ -52,6 +50,8 @@ public class FieldCentricTeleOp extends OpMode {
                 smoothedTurn,
                 false                    // false = FIELD CENTRIC
         );
+
+        follower.update();
 
         telemetry.addData("pose", follower.getPose());
         telemetry.addData("heading (deg)", Math.toDegrees(follower.getPose().getHeading()));

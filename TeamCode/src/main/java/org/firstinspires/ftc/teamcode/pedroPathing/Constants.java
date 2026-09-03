@@ -74,8 +74,9 @@ public class Constants {
     private static double kFBack = 0;
 
     // Measured robot dimensions -- not tuned, just measure your drivetrain.
-    private static double dtLength = 159.77; // measured (CAD), fore/aft offset
-    private static double dtWidth = 137.06;  // measured (CAD), left/right offset
+// Divide mm by 25.4 to get inches, OR divide by 2 if 159mm is total length (Pedro needs distance from CENTER to pod)
+    private static double dtLength = 6.29; // Inches from center to front/back pod
+    private static double dtWidth  = 5.39; // Inches from center to left/right pod
 
     private static CoaxialPod leftFront(HardwareMap hardwareMap) {
         CoaxialPod pod = new CoaxialPod(hardwareMap, "FL_Drive", "FL_Steer", "FL_Position",
@@ -86,8 +87,8 @@ public class Constants {
                 new Pose(dtLength, dtWidth),
                 0.019, 3.211, // analog min/max -- already tuned
                 false); // TODO: encoder inverted, from Encoder Directions step
-        pod.setMotorCachingThreshold(0.05);
-        pod.setServoCachingThreshold(0.05);
+//        pod.setMotorCachingThreshold(0.05);
+//        pod.setServoCachingThreshold(0.05);
         return pod;
     }
 
@@ -100,8 +101,8 @@ public class Constants {
                 new Pose(dtLength, -dtWidth),
                 0.006, 3.213, // analog min/max -- already tuned
                 false);
-        pod.setMotorCachingThreshold(0.05);
-        pod.setServoCachingThreshold(0.05);
+//        pod.setMotorCachingThreshold(0.05);
+//        pod.setServoCachingThreshold(0.05);
         return pod;
     }
 
@@ -114,8 +115,8 @@ public class Constants {
                 new Pose(-dtLength, dtWidth),
                 0.004, 3.201, // analog min/max -- already tuned
                 false);
-        pod.setMotorCachingThreshold(0.05);
-        pod.setServoCachingThreshold(0.05);
+//        pod.setMotorCachingThreshold(0.05);
+//        pod.setServoCachingThreshold(0.05);
         return pod;
     }
 
@@ -124,12 +125,12 @@ public class Constants {
                 new PIDFCoefficients(kP, 0, kD, kFBack),
                 DcMotorSimple.Direction.FORWARD,
                 DcMotorSimple.Direction.FORWARD,
-                0.10178368721910855,
+                4.359082143018361,
                 new Pose(-dtLength, -dtWidth),
                 0.006, 3.216, // analog min/max -- already tuned
                 false);
-        pod.setMotorCachingThreshold(0.05);
-        pod.setServoCachingThreshold(0.05);
+//        pod.setMotorCachingThreshold(0.05);
+//        pod.setServoCachingThreshold(0.05);
         return pod;
     }
 
