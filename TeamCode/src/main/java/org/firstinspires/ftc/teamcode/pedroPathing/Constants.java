@@ -45,7 +45,7 @@ public class Constants {
             // .predictiveBrakingCoefficients(new PredictiveBrakingCoefficients(0.05, 0, 0.002))
 
             .centripetalScaling(0.0005) // docs note a very low value (~0.0005) helps minimize spline oscillation on swerve
-            .mass(13.732); // TODO: update to your robot's actual mass (kg)
+            .mass(6.26);
 
     // ===================== Localizer (Pinpoint) =====================
     // Keep your measured odometry pod offsets -- these come from physical measurement, not tuning.
@@ -68,8 +68,8 @@ public class Constants {
     // ===================== Pod PIDF placeholders =====================
     // Docs: "put in the placeholder pod PIDF coefficients (kP = 0.3, kI = 0, kD = 0.005, kF = 0)"
     // before running Swerve Offsets Test. Tune these for real in the Pod PIDF Tuning step.
-    private static double kP = 0.3;
-    private static double kD = 0.005;
+    private static double kP = 0.2;
+    private static double kD = 0.00000005;
     private static double kFFront = 0;
     private static double kFBack = 0;
 
